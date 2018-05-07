@@ -5,6 +5,7 @@ texts = {
     "settings":"⚙ Settings",
     "contact":"📞 Contact us",
     "home":"🏠 Home",
+    "contact1":"{Store_name} - {store_phone}",
 
 
 }

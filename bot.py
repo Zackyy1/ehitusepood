@@ -12,9 +12,13 @@ db = usersdb.users
 companies = companiesdb.companies
 items = itemsdb.items
 
-token = "564926610:AAGreq0Fw3AqkLrTbVRzPUYDh1XdJWkrvD8"
+
+token = os.environ['TELEGRAM_TOKEN']
+url = os.environ['FIREBASE_URL']
+
+server = Flask(__name__)
 bot = telebot.TeleBot(token)
-url = "https://foralstuff.firebaseio.com/"
+
 fb = firebase.FirebaseApplication(url, None)
 global stage
 
@@ -504,5 +508,21 @@ def handle_Text(mes):
 
 ################################################################################################## END
 
+@server.route('/' + token, methods=['POST'])
+def getMessage():
+    bot.process_new_updates([telebot.types.Update.de_json(request.stream.read().decode("utf-8"))])
+    return "!", 200
 
-bot.polling()
+
+@server.route("/")
+def webhook():
+    bot.remove_webhook()
+    bot.set_webhook(url='https://ehitusepood.herokuapp.com/' + token)
+    return "!", 200
+
+
+if __name__ == "__main__":
+    try:
+        server.run(host="0.0.0.0", port=int(os.environ.get('PORT', 5000)))
+    except Exception as x:
+        print(x)

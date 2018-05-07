@@ -10,6 +10,7 @@ import redis
 import os
 from flask import jsonify
 from flask import Flask
+from flask import request
 import requests
 import re
 import json

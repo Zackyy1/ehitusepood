@@ -19,16 +19,17 @@ dict = dictionary.texts
 db = usersdb.users
 companies = companiesdb.companies
 items = itemsdb.items
-
-
 token = os.environ['TELEGRAM_TOKEN']
 url = os.environ['FIREBASE_URL']
-
 server = Flask(__name__)
-bot = telebot.TeleBot(token)
 
-fb = firebase.FirebaseApplication(url, None)
+
+
+
+
 global stage
+bot = telebot.TeleBot(token)
+fb = firebase.FirebaseApplication(url, None)
 
 ################################################################################################## Variables
 hide = types.ReplyKeyboardRemove()
@@ -188,11 +189,14 @@ def setStage(stage, mes):
         bot.send_message(mes.chat.id, "Let's start by choosing your country?", reply_markup=newBut("Estonia", "Finland"))
         #todo: Add to Firebase when testing is done
         setStage("registerCountry", mes)
+
     elif stage == "start":
         bot.send_message(mes.chat.id, "Welcome back, "+mes.from_user.first_name+"!")
         setStage("MainMenu", mes)
+
     elif stage == "registerCountry":
         db[str(mes.chat.id)]['stage'] = stage
+
     elif stage == "registerCompany":
         db[str(mes.chat.id)]['stage'] = stage
         d = db[str(mes.chat.id)]
@@ -208,9 +212,11 @@ def setStage(stage, mes):
         bot.send_message(mes.chat.id, "Enter your city")
         bot.send_message(mes.chat.id, "If you order for your company, please tap \"Skip\". We'll choose your company in the next step", reply_markup=newBut("Skip"))
         db[str(mes.chat.id)]['stage'] = stage
+
     elif stage == "registerAddress":
         bot.send_message(mes.chat.id, "Enter delivery address. i.e. Pikk 52-1")
         db[str(mes.chat.id)]['stage'] = stage
+
     elif stage == "finishRegister":
         bot.send_message(mes.chat.id, "Is this information correct?")
         db[str(mes.chat.id)]['stage'] = stage
@@ -221,15 +227,16 @@ def setStage(stage, mes):
         else:
             bot.send_message(mes.chat.id, db[str(mes.chat.id)]['company'] + ", " +
                              db[str(mes.chat.id)]['country'], reply_markup=newBut("Yes", "No"))
+
     elif stage == "payment":
         db[str(mes.chat.id)]['stage'] = stage
         bot.send_message(mes.chat.id, "Proceed to payment?", reply_markup=newBut("Pay", dict['home']))
+
     elif stage == "MainMenu":
         bot.send_message(mes.chat.id, "This is main menu. Choose what you would like to do:", reply_markup=newBut(dict["browse"], dict["orders"], dict["cart"], dict["settings"], dict["contact"]))
         print("Main menu")
         db[str(mes.chat.id)]['stage'] = stage
         saveUser(mes)
-
 
     elif stage == "browse":
         print("GOT TO BROWSE")
@@ -243,6 +250,7 @@ def setStage(stage, mes):
     elif stage == "cart":
         db[str(mes.chat.id)]['stage'] = stage
         if checkKey(db[str(mes.chat.id)], "cart") == True:
+
             if len(db[str(mes.chat.id)]['cart']) == 0 or len(db[str(mes.chat.id)]['cart']) is None:
                 bot.send_message(mes.chat.id,
                                  "Your cart is empty! Add something that you would like to order and come back again!")
@@ -255,7 +263,8 @@ def setStage(stage, mes):
                 total = 0
                 for i in range(0, len(db[str(mes.chat.id)]['cart'])):
                     total += int(values[i]['price']) * int(values[i]['amount'])
-                    bot.send_photo(mes.chat.id, values[i]['image'])
+                    photoid = bot.send_photo(mes.chat.id, values[i]['image']).message_id
+                    db[str(mes.chat.id)]['cart'][str(keys[i])]['imageid'] = photoid
                     bot.send_message(mes.chat.id, values[i]['name']+", "+values[i]['description']+". Price per piece: "+str(values[i]['price']+"$"), reply_markup=cartInlines(str(keys[i]), mes, values[i]['amount']))
 
                 totalid = bot.send_message(mes.chat.id, "Total price: "+ str(total)+"$")
@@ -287,6 +296,7 @@ def setStage(stage, mes):
 
     elif stage == "contact":
         db[str(mes.chat.id)]['stage'] = stage
+        bot.send_message(mes.chat.id, dict['contact1'])
         print()
 
 def newUser(mes):
@@ -369,7 +379,7 @@ def handle_callback(call):
             print("Action is found: |"+str(findAction)+"|")
 
             if findAction != "delete" and int(findAction) >= 0:                       ##### ADDING AMOUNT TO CART
-                print("Tried to do smth")
+                print("Tried to change amount")
                 db[str(mes.chat.id)]['cart'][str(findName)]['amount'] = int(findAction)
                 newInt = int(db[str(mes.chat.id)]['cart'][findName]['amount'])
                 bot.edit_message_reply_markup(chat_id=id, message_id=mes.message_id, reply_markup=cartInlines(findName, mes, newInt))
@@ -378,19 +388,23 @@ def handle_callback(call):
 
             elif findAction == "delete":
                 print("Deleting "+findName)
+                imageid = db[str(mes.chat.id)]['cart'][findName]['imageid']
+                bot.delete_message(chat_id=mes.chat.id, message_id=imageid)
                 db[str(mes.chat.id)]['cart'].pop(findName)
                 bot.delete_message(chat_id=mes.chat.id, message_id=mes.message_id)
                 saveUser(mes)
-
+                db[str(mes.chat.id)]['cartinfo']['total'] = calcTotal(mes)
+                bot.edit_message_text(chat_id=mes.chat.id, message_id=db[str(mes.chat.id)]['cartinfo']['id'],
+                                      text="Total price: " + str(db[str(mes.chat.id)]['cartinfo']['total']) + "$")
                 if len(db[str(mes.chat.id)]['cart']) == 0 or db[str(mes.chat.id)]['cart'] is None:
                     bot.send_message(mes.chat.id, "Cart is empty! Add something and then come back!")
                     setStage("MainMenu", mes)
+                saveUser(mes)
             else:
                 print("Something went wrong, returning")
                 setStage("MainMenu", mes)
     elif data[data.find(";")+1:] != 'add' and str(call.data) != "AMOUNT" and data != "clear":
         print("Adding "+call.data)
-        #print("DOING THIS: "+str(int(data[data.find(" ")+1:])))
         if int(data[data.find(";")+1:]) >= 0:
             bot.edit_message_reply_markup(chat_id=id, message_id=mes.message_id, reply_markup=itemInline(data[:data.find(";")], int(data[data.find(";")+1:]))) ## todo: fix this shit please
     elif str(data[data.find(";")+1:]) == "add" and int(data[data.find(",") + 1:data.find(";")]) > 0:
@@ -481,6 +495,9 @@ def handle_Text(mes):
 
     elif mes.text == dict["browse"]:
         setStage("browse", mes)
+
+    elif mes.text == dict['contact']:
+        setStage("contact", mes)
 
     elif getStage(mes) == "browse" and mes.text in list(itemsdb.categories):
         sort(itemsdb.bycategory[mes.text], mes, 0)

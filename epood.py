@@ -10,6 +10,9 @@ import redis
 import os
 from flask import jsonify
 from flask import Flask
+import requests
+import re
+import json
 
 dict = dictionary.texts
 db = usersdb.users

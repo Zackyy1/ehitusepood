@@ -14,6 +14,27 @@ items = {
         "description": "Hammers are good for beating nails",
         "image": "https://images-na.ssl-images-amazon.com/images/I/61QanwisKgL._SL1466_.jpg"
     },
+    "screws1":{
+        "name": "Standart screws",
+        "price": "2",
+        "category": "Entities",
+        "description": "5cm Screws",
+        "image": "https://www.formwork-sales.com/wp-content/uploads/2017/05/screws.jpg"
+    },
+    "screws2":{
+        "name": "Small screws",
+        "price": "1",
+        "category": "Entities",
+        "description": "1cm Screws",
+        "image": "http://assets.rockler.com/media/catalog/product/cache/1/image/720x720/9df78eab33525d08d6e5fb8d27136e95/5/2/52532-02-1000.jpg"
+    },
+    "screws3":{
+        "name": "Thick screws",
+        "price": "2",
+        "category": "Entities",
+        "description": "1cm Thick Screws",
+        "image": "http://images.greenmanbushcraft.co.uk/29/1410254205_07.jpg"
+    },
     "gloves": {
         "name": "Builder's gloves",
         "price": "10",
@@ -36,13 +57,5 @@ items = {
         "image": "https://images-na.ssl-images-amazon.com/images/I/6119NymgOtL._SL1000_.jpg"
     },
 
-#######################
 }
 
-#"item2":{
-      #  "name": "item2name",
-      #  "price": "item2 price",
-      #  "category": "Entities",
-       # "description": "item2 description",
-       # "image": "item2 image link (www.example.com/image.jpg)"
-   # },

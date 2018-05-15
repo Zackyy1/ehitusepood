@@ -1,7 +1,7 @@
-## 56682332  igor411@hot.ee
+
 
 categories = ["Tools", "Entities", "Tech", "Equipment"]
-
+cats = []
 bycategory = {}
 
 
@@ -20,6 +20,13 @@ items = {
         "category": "Entities",
         "description": "5cm Screws",
         "image": "https://www.formwork-sales.com/wp-content/uploads/2017/05/screws.jpg"
+    },
+    "biblesatan":{
+        "name": "Standart books",
+        "price": "666",
+        "category": "Religion books",
+        "description": "For satanic purposes",
+        "image": "https://www.thesun.co.uk/wp-content/uploads/2016/05/2897054.main_image.jpg?strip=all"
     },
     "screws2":{
         "name": "Small screws",

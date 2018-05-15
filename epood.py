@@ -34,9 +34,8 @@ fb = firebase.FirebaseApplication(url, None)
 ################################################################################################## Variables
 hide = types.ReplyKeyboardRemove()
 
-
+fb.patch("/items", items)
 ################################################################################################## Functions
-
 
 def newBut(*args):
     mrkup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2, one_time_keyboard=True)
@@ -69,14 +68,25 @@ def updateLocalDB():
     global db
     fb.patch("users/", {"212312312":"Test"})
     db = fb.get("users/", None)
-    print("Database updated:")
-    print(db)
+    print("Database updated")
+
+def sortAllByCategory():
+    keys = list(items.keys())
+    values = list(items.values())
+    cats = []
+    for i in range(0, len(items)):
+        if values[i]["category"] in cats:
+            print("Skipped "+str(keys[i]))
+        else:
+            cats.append(values[i]['category'])
+    itemsdb.cats = cats
+    print(cats)
 
 def sortCategories():
 
     itemkeys = list(items.keys())
     itemvalues = list(items.values())
-    catlist = itemsdb.categories
+    catlist = itemsdb.cats
     for s in range(0, len(catlist)):
         itemsdb.bycategory[str(catlist[s])] = {}
     for i in range(0, len(catlist)):
@@ -88,8 +98,8 @@ def sortCategories():
 def categoryButtons():
     mrkup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2, one_time_keyboard=True)
     buts = []
-    for i in range(0, len(itemsdb.categories)):
-        but = types.KeyboardButton(itemsdb.categories[i])
+    for i in range(0, len(itemsdb.cats)):
+        but = types.KeyboardButton(itemsdb.cats[i])
         buts.append(but)
     homebut = types.KeyboardButton(dict["home"])
     buts.append(homebut)
@@ -118,8 +128,7 @@ def sort(dict, mes, step1):
     for i in range(0, 2):
         if step < len(dict):
 
-            bot.send_photo(mes.chat.id, values[i]['image'])
-            print("Doing "+str(i)+" "+str(keys[i]))
+            bot.send_photo(mes.chat.id, values[step]['image'])
             bot.send_message(mes.chat.id, values[step]['name']+". "+values[step]['description']+". Price: "+values[step]['price']+"$", reply_markup = itemInline(str(keys[step]), 0))
             #db[str(mes.chat.id)]['browsing'][]
             step += 1
@@ -239,7 +248,6 @@ def setStage(stage, mes):
         saveUser(mes)
 
     elif stage == "browse":
-        print("GOT TO BROWSE")
         db[str(mes.chat.id)]['stage'] = stage
         bot.send_message(mes.chat.id, "Choose category:", reply_markup=categoryButtons())
 
@@ -296,7 +304,7 @@ def setStage(stage, mes):
 
     elif stage == "contact":
         db[str(mes.chat.id)]['stage'] = stage
-        bot.send_message(mes.chat.id, dict['contact1'])
+        bot.send_message(mes.chat.id, dict['contact1'], reply_markup=newBut(dict['home']))
         print()
 
 def newUser(mes):
@@ -335,6 +343,7 @@ def checkKey(dict, key):
 ################################################################################################## Setup
 
 updateLocalDB() # Updating local DB to improve performance
+sortAllByCategory()
 sortCategories()
 
 ################################################################################################## Listeners
@@ -403,7 +412,7 @@ def handle_callback(call):
             else:
                 print("Something went wrong, returning")
                 setStage("MainMenu", mes)
-    elif data[data.find(";")+1:] != 'add' and str(call.data) != "AMOUNT" and data != "clear":
+    elif data[data.find(";")+1:] != 'add' and str(call.data) != "AMOUNT" and data != "clear" and data != "skip":
         print("Adding "+call.data)
         if int(data[data.find(";")+1:]) >= 0:
             bot.edit_message_reply_markup(chat_id=id, message_id=mes.message_id, reply_markup=itemInline(data[:data.find(";")], int(data[data.find(";")+1:]))) ## todo: fix this shit please
@@ -429,6 +438,9 @@ def handle_callback(call):
         db[str(mes.chat.id)]['cart'] = {}
         bot.send_message(mes.chat.id, "Your cart is now empty!")
         setStage("MainMenu", mes)
+
+    elif data == "skip":
+        setStage("cart", mes)
     saveUser(mes)
 
 @bot.message_handler(content_types=['text'])
@@ -499,7 +511,7 @@ def handle_Text(mes):
     elif mes.text == dict['contact']:
         setStage("contact", mes)
 
-    elif getStage(mes) == "browse" and mes.text in list(itemsdb.categories):
+    elif getStage(mes) == "browse" and mes.text in list(itemsdb.cats):
         sort(itemsdb.bycategory[mes.text], mes, 0)
         patchCategory(mes)
 
@@ -532,6 +544,7 @@ def handle_Text(mes):
 
 
 ################################################################################################## END
+
 
 @server.route('/' + token, methods=['POST'])
 def getMessage():

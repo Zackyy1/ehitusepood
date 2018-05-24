@@ -12,3 +12,5 @@ owner_Info = {
 users = {
     "12312421":{}
 }
+
+backups = {}

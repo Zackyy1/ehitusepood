@@ -1,14 +1,16 @@
 companies = {
-"Estonia" : {
+    "Estonia" : {
     "companies" : ["Foral", "Rimi", "Mirage"],
 },
-"Finland" : {
+    "Finland" : {
     "companies": ["Suomi", "Kerkel", "Fazer"],
 },
-"poland" : {
+    "Poland" : {
     "companies": [],
 },
-"norway" : {
+    "Norway" : {
     "companies": [],
 }
 }
+
+countries = ["Estonia", "Finland", "Poland", "Norway"]

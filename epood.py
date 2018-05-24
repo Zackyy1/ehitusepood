@@ -14,6 +14,7 @@ import requests
 import re
 import json
 import datetime
+from telebot.types import ShippingOption
 
 dict = dictionary.texts
 db = usersdb.users

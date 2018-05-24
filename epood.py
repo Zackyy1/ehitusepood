@@ -358,8 +358,8 @@ def saveUser(mes):
         fb.patch("users/"+str(mes.chat.id), db[str(mes.chat.id)])
     except Exception as x:
         print("SOMETHING FAILED: "+str(x))
-    print("Saved "+str(mes.chat.id)+" to database. DEBUG:")
-    print(db[str(mes.chat.id)])
+    print("Saved "+str(mes.chat.id)+" to database.")
+
 
 def getStage(mes):
     return db[str(mes.chat.id)]['stage']
@@ -410,17 +410,21 @@ updateLocalDB() # Updating local DB to improve performance
 sortAllByCategory()
 sortCategories()
 ################################################################################################## Listeners
-
+prices = [LabeledPrice(label='Working Time Machine', amount=5750),
+          LabeledPrice('Gift wrapping', 500)]
 
 def makeLabeledPrices():
     things = []
     keys = list(items.keys())
     values = list(items.values())
     for i in range(0, len(items)):
-        things.append(LabeledPrice(values[i]['name'], values[i]['price']*1000000 ))
+        things.append(LabeledPrice(values[i]['name'], values[i]['price']*100 ))
     prices = things
     print(prices)
 
+shipping_options = [
+    ShippingOption(id='instant', title='WorldWide Teleporter').add_price(LabeledPrice('Teleporter', 1000)),
+    ShippingOption(id='pickup', title='Local pickup').add_price(LabeledPrice('Pickup', 300))]
 
 @bot.message_handler(commands=['terms'])
 def command_terms(message):
@@ -477,7 +481,7 @@ def got_payment(mes):
     db[str(mes.chat.id)]['orders']['order'+str(orderid)] = db[str(mes.chat.id)]['cart'].copy()
     db[str(mes.chat.id)]['orders']['order' + str(orderid)]['date'] = datetime.datetime.now()
     db[str(mes.chat.id)]['orders']['order' + str(orderid)]['id'] = orderid
-    #db[str(mes.chat.id)].pop('cart')
+    db[str(mes.chat.id)].pop('cart')
     print("User's order dict: "+str(db[str(mes.chat.id)]['orders']))
     this = db[str(mes.chat.id)]['orders'].copy()
     fb.patch("users/"+str(mes.chat.id)+"/cart", None)
@@ -742,7 +746,7 @@ def handle_Text(mes):
                                      'country'] + "?", reply_markup=newBut("Yes", "No"))
 
         elif mes.text == "Yes" and getStage(mes) == "delivery":
-            makePayment(mes, [LabeledPrice(label=mes.from_user.first_name+"'s order", amount=int(userDB['cartinfo']['total']))]) ## Ask to pay it all :p
+            makePayment(mes, [LabeledPrice(label=mes.from_user.first_name+"'s order", amount=int(userDB['cartinfo']['total'])*100)]) ## Ask to pay it all :p
 
 
         elif mes.text == "No" and getStage(mes) == "delivery":

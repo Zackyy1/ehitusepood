@@ -21,6 +21,7 @@ companies = companiesdb.companies
 items = itemsdb.items
 token = os.environ['TELEGRAM_TOKEN']
 url = os.environ['FIREBASE_URL']
+provider_token = os.environ['PROVIDER_TOKEN']
 server = Flask(__name__)
 
 

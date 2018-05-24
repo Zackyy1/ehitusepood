@@ -393,7 +393,7 @@ def makeOrderInlines(mes):
         plusminus.append(types.InlineKeyboardButton(">",callback_data="orders>"))
 
     if len(plusminus) > 0:
-        mrkup.add(plusminus)
+        mrkup.add(*plusminus)
 
     return mrkup
 

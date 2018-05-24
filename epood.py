@@ -590,7 +590,7 @@ def handle_callback(call):
     elif data == "skip":
         setStage("cart", mes)
 
-    elif data[:6] == "orders" and isinstance(int(data[6:]), int) and data[6:] != "<" and data[6:] != ">":
+    elif data[:6] == "orders" and data[6:] != "<" and data[6:] != ">" and isinstance(int(data[6:]), int):
         print("GOT PAST ordersNUM filter")
         itemsfororder = ""
         keys = list(db[str(mes.chat.id)]['orders']['order'+data[6:]].keys())

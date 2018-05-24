@@ -3,7 +3,6 @@ from telebot import types
 import companiesdb
 from firebase import firebase
 import usersdb
-import companiesdb
 import itemsdb
 import dictionary
 import redis
@@ -14,6 +13,7 @@ from flask import request
 import requests
 import re
 import json
+import datetime
 
 dict = dictionary.texts
 db = usersdb.users
@@ -106,6 +106,15 @@ def categoryButtons():
     mrkup.add(*buts)
     return mrkup
 
+def countryButtons():
+    mrkup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2, one_time_keyboard=True)
+    buts = []
+    for i in range(0, len(companiesdb.countries)):
+        but = types.KeyboardButton(companiesdb.countries[i])
+        buts.append(but)
+    mrkup.add(*buts)
+    return mrkup
+
 def itemInline(data, amount):
     print("Made an inline button with data "+data)
     linemarkup = types.InlineKeyboardMarkup(row_width=5)
@@ -169,7 +178,11 @@ def patchCategory(mes):
 
 def patchStage(mes, stage):
     db[str(mes.chat.id)]['stage'] = stage
-    fb.patch("users/"+str(mes.chat.id), db[str(mes.chat.id)])
+    try:
+        fb.patch("users/"+str(mes.chat.id), db[str(mes.chat.id)])
+    except Exception as x:
+        print(x)
+
     print("Patched user's stage")
 
 def cartInlines(name, mes, num):
@@ -185,6 +198,11 @@ def cartInlines(name, mes, num):
     mrkup.add(x, minusten, minusone, amount1, plusone, plusten)
     return mrkup
 
+def getKeys(dict):
+    keys = list(dict.keys())
+    print(tuple(keys))
+    return keys
+
 def setStage(stage, mes):
 
     if findId(mes) == True:
@@ -195,8 +213,7 @@ def setStage(stage, mes):
     if stage == "firststart":
         newUser(mes)
         bot.send_message(mes.chat.id, "Welcome to {my_bot}! I don't know you yet, so let's register you as a new user!")
-        bot.send_message(mes.chat.id, "Let's start by choosing your country?", reply_markup=newBut("Estonia", "Finland"))
-        #todo: Add to Firebase when testing is done
+        bot.send_message(mes.chat.id, "Let's start by choosing your country?", reply_markup=countryButtons())
         setStage("registerCountry", mes)
 
     elif stage == "start":
@@ -254,6 +271,9 @@ def setStage(stage, mes):
     elif stage == "orders":
         print()
         db[str(mes.chat.id)]['stage'] = stage
+        db[str(mes.chat.id)]['inlinestep'] = 0
+        bot.send_message(mes.chat.id, "Here are your recent orders:", reply_markup=makeOrderInlines(mes))
+        bot.send_message(mes.chat.id, "Click Home to return home", reply_markup=newBut(dict['home']))
 
     elif stage == "cart":
         db[str(mes.chat.id)]['stage'] = stage
@@ -313,6 +333,7 @@ def newUser(mes):
     db[str(id)] = {}
     db1 = db[str(id)]
     db1['name'] = name
+    db1['language'] = "english"
     db1['stage'] = ''
     db1['country'] = ''
     db1['city'] = ''
@@ -321,17 +342,57 @@ def newUser(mes):
     db1['orders'] = {}
     db1['cart'] = {}
     db1['step'] = 0
+    db1['inlinestep'] = 0
     db1['category'] = ""
+    db1['orders'] = {}
     db1['browsing'] = {}
     db1['cartinfo'] = {}
 
 def saveUser(mes):
-    fb.patch("users/"+str(mes.chat.id), db[str(mes.chat.id)])
+    print("SAVEUSER DEBUG: "+str(db[str(mes.chat.id)]))
+    try:
+        fb.patch("users/"+str(mes.chat.id), db[str(mes.chat.id)])
+    except Exception as x:
+        print("SOMETHING FAILED: "+str(x))
     print("Saved "+str(mes.chat.id)+" to database. DEBUG:")
     print(db[str(mes.chat.id)])
 
 def getStage(mes):
     return db[str(mes.chat.id)]['stage']
+
+def makeOrderInlines(mes):
+    udb = db[str(mes.chat.id)]
+    step = udb['inlinestep']
+    mrkup = types.InlineKeyboardMarkup(row_width=2)
+    buttons = []
+    keys = list(udb['orders'].keys())
+    values = list(udb['orders'].values())
+    print("Orders length: "+str(len(udb['orders'])))
+    if step < len(udb['orders']):
+        print("Came past")
+        for i in range(0, 5):
+            if step < len(udb['orders']):
+                but = types.InlineKeyboardButton(text=str(keys[step]), callback_data="orders"+str(values[step]['id']))
+                buttons.append(but)
+                step+=1
+            else:
+                print("List ended")
+    print("Current step: "+str(step))
+    for i in range(0, len(buttons)):
+        mrkup.add(buttons[i])
+    #if step <
+    saveUser(mes)
+    plusminus = []
+    if step % 5 < 1:
+        plusminus.append(types.InlineKeyboardButton("<",callback_data="orders<"))
+    if step % 5 > 5:
+        plusminus.append(types.InlineKeyboardButton(">",callback_data="orders>"))
+
+    if len(plusminus) > 0:
+        mrkup.add(plusminus)
+
+    return mrkup
+
 
 def checkKey(dict, key):
     whattoreturn = False
@@ -341,12 +402,87 @@ def checkKey(dict, key):
             whattoreturn = True
     return whattoreturn
 ################################################################################################## Setup
-
 updateLocalDB() # Updating local DB to improve performance
 sortAllByCategory()
 sortCategories()
-
 ################################################################################################## Listeners
+prices = [LabeledPrice(label='Working Time Machine', amount=5750),
+          LabeledPrice('Gift wrapping', 500)]
+
+def makeLabeledPrices():
+    things = []
+    keys = list(items.keys())
+    values = list(items.values())
+    for i in range(0, len(items)):
+        things.append(LabeledPrice(values[i]['name'], values[i]['price']*1000000 ))
+    prices = things
+    print(prices)
+
+shipping_options = [
+    ShippingOption(id='instant', title='WorldWide Teleporter').add_price(LabeledPrice('Teleporter', 1000)),
+    ShippingOption(id='pickup', title='Local pickup').add_price(LabeledPrice('Pickup', 300))]
+
+@bot.message_handler(commands=['terms'])
+def command_terms(message):
+    bot.send_message(message.chat.id,
+                     'Thank you for shopping with our demo bot. We hope you like your new time machine!\n'
+                     '1. If your time machine was not delivered on time, please rethink your concept of time and try again.\n'
+                     '2. If you find that your time machine is not working, kindly contact our future service workshops on Trappist-1e.'
+                     ' They will be accessible anywhere between May 2075 and November 4000 C.E.\n'
+                     '3. If you would like a refund, kindly apply for one yesterday and we will have sent it to you immediately.')
+
+def makePayment(mes, price):
+    bot.send_message(mes.chat.id,
+                     "Real cards won't work with me, no money will be debited from your account."
+                     " Use this test card number to pay for your Time Machine: `4242 4242 4242 4242`"
+                     "\n\nThis is your demo invoice:", parse_mode='Markdown', reply_markup=newBut(dict['home']))
+    bot.send_invoice(mes.chat.id, title=mes.from_user.first_name+"'s Order",
+                     description="Your order is listed above. Double-check!",
+                     provider_token=provider_token,
+                     currency='eur',
+                     photo_url=None,
+                     photo_height=None,  # !=0/None or picture won't be shown
+                     photo_width=None,
+                     photo_size=None,
+                     is_flexible=False,  # True If you need to set up Shipping Fee
+                     prices=price,
+                     start_parameter='time-machine-example',
+                     invoice_payload=str(mes.chat.id))
+
+@bot.shipping_query_handler(func=lambda query: True)
+def shipping(shipping_query):
+    print(shipping_query)
+    bot.answer_shipping_query(shipping_query.id, ok=True, shipping_options=shipping_options,
+                              error_message='Oh, seems like our Dog couriers are having a lunch right now. Try again later!')
+
+@bot.pre_checkout_query_handler(func=lambda query: True)
+def checkout(pre_checkout_query):
+    bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True,
+                                  error_message="Aliens tried to steal your card's CVV, but we successfully protected your credentials,"
+                                                " try to pay again in a few minutes, we need a small rest.")
+
+@bot.message_handler(content_types=['successful_payment'])
+def got_payment(mes):
+    bot.send_message(mes.chat.id,
+                     'Hoooooray! Thanks for payment! We will proceed your order for `{} {}` as fast as possible! '
+                     'Stay in touch.\n\nUse /buy again to get a Time Machine for your friend!'.format(
+                         mes.successful_payment.total_amount / 100, mes.successful_payment.currency),
+                     parse_mode='Markdown')
+    orderid = randint(1000000, 9999999)
+
+    bot.send_message(mes.chat.id, "Your order ID is "+str(orderid))
+    if "orders" not in db[str(mes.chat.id)]:
+        db[str(mes.chat.id)]['orders'] = {}
+
+    db[str(mes.chat.id)]['orders']['order'+str(orderid)] = db[str(mes.chat.id)]['cart'].copy()
+    db[str(mes.chat.id)]['orders']['order' + str(orderid)]['date'] = datetime.datetime.now()
+    db[str(mes.chat.id)]['orders']['order' + str(orderid)]['id'] = orderid
+    #db[str(mes.chat.id)].pop('cart')
+    print("User's order dict: "+str(db[str(mes.chat.id)]['orders']))
+    this = db[str(mes.chat.id)]['orders'].copy()
+    fb.patch("users/"+str(mes.chat.id)+"/cart", None)
+    fb.patch("users/"+str(mes.chat.id)+"/orders/order"+str(orderid), this["order"+str(orderid)])
+    bot.send_message(mes.chat.id, "Your cart is now empty!", reply_markup=newBut(dict['home']))
 
 @bot.message_handler(commands=["help"])
 def handle_help(mes):
@@ -362,6 +498,12 @@ def handle_help(mes):
 @bot.message_handler(commands=['settings'])
 def handle_settings(mes):
     setStage("settings", mes)
+
+@bot.message_handler(commands=['go'])
+def go(mes):
+    userDB = db[str(mes.chat.id)]
+    makePayment(mes,
+                [LabeledPrice(label=mes.from_user.first_name + "'s order", amount=int(userDB['cartinfo']['total']))])
 
 @bot.message_handler(commands=["start"])
 def init_start(mes):
@@ -412,7 +554,7 @@ def handle_callback(call):
             else:
                 print("Something went wrong, returning")
                 setStage("MainMenu", mes)
-    elif data[data.find(";")+1:] != 'add' and str(call.data) != "AMOUNT" and data != "clear" and data != "skip":
+    elif data[data.find(";")+1:] != 'add' and str(call.data) != "AMOUNT" and data != "clear" and data != "skip" and data[:6] != "orders":
         print("Adding "+call.data)
         if int(data[data.find(";")+1:]) >= 0:
             bot.edit_message_reply_markup(chat_id=id, message_id=mes.message_id, reply_markup=itemInline(data[:data.find(";")], int(data[data.find(";")+1:]))) ## todo: fix this shit please
@@ -434,6 +576,8 @@ def handle_callback(call):
 
             ################################################################ DIFFERENT INLINES #########################
 
+
+
     elif data == "clear":
         db[str(mes.chat.id)]['cart'] = {}
         bot.send_message(mes.chat.id, "Your cart is now empty!")
@@ -441,108 +585,186 @@ def handle_callback(call):
 
     elif data == "skip":
         setStage("cart", mes)
-    saveUser(mes)
+
+    elif data[:6] == "orders" and isinstance(int(data[6:]), int) and data[6:] != "<" and data[6:] != ">":
+        print("GOT PAST ordersNUM filter")
+        itemsfororder = ""
+        keys = list(db[str(mes.chat.id)]['orders']['order'+data[6:]].keys())
+        values = list(db[str(mes.chat.id)]['orders']['order'+data[6:]].values())
+
+        for i in range(0, len(db[str(mes.chat.id)]['orders']['order'+data[6:]])):
+            if str(keys[i]) != "id" and str(keys[i]) != "date":
+                print(db[str(mes.chat.id)]['orders']['order'+data[6:]])
+
+                itemsfororder = \
+                    str(itemsfororder) + \
+                    str(values[i]['name'])+", "+ \
+                    str(str(values[i]['amount']))+ " pcs."+\
+                    "\n"
+                # str(values[i]['amount'])+\
+        itemsfororder = itemsfororder + "\nDate: "+str(db[str(mes.chat.id)]['orders']['order'+data[6:]]['date'])
+
+        bot.send_message(mes.chat.id, "Order #"+str(data[6:])+"\n \nOrdered items: \n \n"+itemsfororder, reply_markup=newBut(dict['home']))
+        print("Making more inlines")
+
+    elif data[:6] == "orders" and data[6:] == "<" or data[6:] == ">":
+        if data[6:] == "<":
+            print("Switch step to -5 if possible")
+            for i in range(0, 5):
+                if db[str(mes.chat.id)]['inlinestep'] >= 0:
+                    db[str(mes.chat.id)]['inlinestep'] -= 1
+                    print("Step: "+str(db[str(mes.chat.id)]['inlinestep']))
+                else:
+                    print("Nope")
+
+        elif data[6:] == ">":
+            print("Switch step to +5 if possible")
+            for i in range(0, 5):
+                if db[str(mes.chat.id)]['inlinestep'] < len(db[str(mes.chat.id)]['orders']):
+                    db[str(mes.chat.id)]['inlinestep'] += 1
+                    print("Step: "+str(db[str(mes.chat.id)]['inlinestep']))
+                else:
+                    print("Nope")
+
+
+        saveUser(mes)
 
 @bot.message_handler(content_types=['text'])
 def handle_Text(mes):
     print(db)
-    userDB = db[str(mes.chat.id)]
-    print("[" + mes.from_user.first_name+" | "+userDB['stage']+": " + mes.text)
-    if getStage(mes) == 'registerCountry':
-        userDB['country'] = mes.text
-        print("User "+mes.from_user.first_name+"'s country is set to "+mes.text)
-        setStage("isCompany", mes)
 
-    elif getStage(mes) == "isCompany" and mes.text == "Skip": ## CHOOSING A COMPANY
-        setStage("registerCompany", mes)
-        userDB['company'] = mes.text
-        print("User " + mes.from_user.first_name + "'s company is set to " + mes.text)
+    findUser = mes.chat.id
 
-    elif getStage(mes) == "isCompany" and mes.text != "Skip": ## ENTERING CITY NAME
-        userDB['city'] = mes.text
-        print("User " + mes.from_user.first_name + "'s city is set to " + mes.text)
-        setStage('registerAddress', mes)
+    if str(findUser) in db:
+        print("Found user..")
+        userDB = db[str(mes.chat.id)]
+        print("[" + mes.from_user.first_name+" | "+userDB['stage']+"]: " + mes.text)
 
-    elif getStage(mes) == "registerAddress":
-        userDB['address'] = mes.text
-        print("User " + mes.from_user.first_name + "'s address is set to " + mes.text)
-        setStage("finishRegister", mes)
 
-    elif getStage(mes) == "registerCompany" and mes.text != "skip":
-        userDB['company'] = mes.text
-        setStage("finishRegister", mes)
+        if getStage(mes) == 'registerCountry' or userDB['country'] == "":
+            userDB['country'] = mes.text
+            print("User "+mes.from_user.first_name+"'s country is set to "+mes.text)
+            setStage("isCompany", mes)
 
-    elif getStage(mes) == "registerCompany" and mes.text == "skip":
-        userDB['company'] = ""
-        setStage("isCompany", mes)
+        elif getStage(mes) == "isCompany" and mes.text == "Skip": ## CHOOSING A COMPANY
+            setStage("registerCompany", mes)
+            userDB['company'] = mes.text
+            print("User " + mes.from_user.first_name + "'s company is set to " + mes.text)
 
-    elif getStage(mes) == "finishRegister" and mes.text == "Yes":
-        saveUser(mes)
-        setStage("MainMenu", mes)
+        elif getStage(mes) == "isCompany" and mes.text != "Skip": ## ENTERING CITY NAME
+            userDB['city'] = mes.text
+            print("User " + mes.from_user.first_name + "'s city is set to " + mes.text)
+            setStage('registerAddress', mes)
 
-    elif getStage(mes) == "finishRegister" and mes.text == "No":
-        print("Restart")
+        elif getStage(mes) == "registerAddress":
+            userDB['address'] = mes.text
+            print("User " + mes.from_user.first_name + "'s address is set to " + mes.text)
+            setStage("finishRegister", mes)
+
+        elif getStage(mes) == "registerCompany" and mes.text != "skip":
+            userDB['company'] = mes.text
+            setStage("finishRegister", mes)
+
+        elif getStage(mes) == "registerCompany" and mes.text == "skip":
+            userDB['company'] = ""
+            setStage("isCompany", mes)
+
+        elif getStage(mes) == "finishRegister" and mes.text == "Yes":
+            if str(mes.chat.id) in usersdb.backups:
+                db[str(mes.chat.id)]['cart'] = usersdb.backups[str(mes.chat.id)]['cart']
+            saveUser(mes)
+            setStage("MainMenu", mes)
+
+        elif getStage(mes) == "finishRegister" and mes.text == "No":
+            print("Restart")
+            setStage("firststart", mes)
+
+        elif getStage(mes) == "settings" and mes.text == "Register again":
+            print("Restart")
+            usersdb.backups[str(mes.chat.id)] = db[str(mes.chat.id)]
+            setStage("firststart", mes)
+
+        elif getStage(mes) == "settings" and mes.text == dict["home"]:
+            print("Settings cancelled by " + str(userDB))
+            saveUser(mes)
+            setStage("MainMenu", mes)
+
+        elif mes.text == "Show more":
+            sort(db[str(mes.chat.id)]['category'], mes, db[str(mes.chat.id)]['step'])
+
+        elif mes.text == dict["settings"]:
+            setStage("settings", mes)
+
+        elif mes.text == dict["cart"]:
+            setStage("cart", mes)
+
+        elif mes.text == dict["home"] or mes.text == "Home" or mes.text == "home" or mes.text == "back":
+            setStage("MainMenu", mes)
+
+        elif mes.text == dict["browse"]:
+            setStage("browse", mes)
+
+        elif mes.text == dict['contact']:
+            setStage("contact", mes)
+
+        elif getStage(mes) == "browse" and mes.text in list(itemsdb.cats):
+            sort(itemsdb.bycategory[mes.text], mes, 0)
+            patchCategory(mes)
+
+        elif getStage(mes) == "payment" and mes.text == "Pay":
+            print("Trying to pay now!")
+
+        elif mes.text == "Order" and getStage(mes) == "cart":
+            print("This is what is in user's cart:")
+            cart = db[str(mes.chat.id)]['cart']
+            keys = list(cart.keys())
+            values = list(cart.values())
+            total = 0
+            bot.send_message(mes.chat.id, "This is your order: ")
+            for i in range(0, len(cart)):
+                print(values[i]['name']+", "+str(values[i]['amount'])+" pcs, "+str(int(values[i]['price'])*int(values[i]['amount']))+"$")
+                bot.send_message(mes.chat.id, values[i]['name']+", "+str(values[i]['amount'])+" pcs, "+str(int(values[i]['price'])*int(values[i]['amount']))+"$")
+                total += int(values[i]['price'])*int(values[i]['amount'])
+
+            bot.send_message(mes.chat.id, "Price: "+str(total)+"$. Would you like to pick up the order yourself, or get it by delivery?", reply_markup=newBut("I'll pick up myself", "Delivery"))
+
+        elif mes.text == "I'll pick up myself" and getStage(mes) == "cart":
+            bot.send_message(mes.chat.id, "Great! Address for pickup is "+ usersdb.owner_Info['Store_Name'] + ", " + usersdb.owner_Info['Storage_Address'])
+            setStage("payment", mes)
+
+        elif mes.text == "Delivery" and getStage(mes) == "cart":
+            setStage("delivery", mes)
+            if userDB['city'] == "":
+                bot.send_message(mes.chat.id, "Is this a correct delivery address: "+userDB['company']+", "+userDB['country']+"?", reply_markup=newBut("Yes", "No", dict['home']))
+            else:
+                bot.send_message(mes.chat.id,
+                                 "Is this a correct delivery address: " + userDB['address'] +", "+userDB['city'] + ", " + userDB[
+                                     'country'] + "?", reply_markup=newBut("Yes", "No"))
+
+        elif mes.text == "Yes" and getStage(mes) == "delivery":
+            makePayment(mes, [LabeledPrice(label=mes.from_user.first_name+"'s order", amount=int(userDB['cartinfo']['total']))]) ## Ask to pay it all :p
+
+
+        elif mes.text == "No" and getStage(mes) == "delivery":
+            bot.send_message(mes.chat.id, "I'll redirect you to settings. Complete it and come to \"Cart\" again!")
+            setStage("settings", mes)
+
+        elif mes.text == "Clear cart" and getStage(mes) == "cart":
+            bot.send_message(mes.chat.id, "Would you really like to clear your cart?", reply_markup=newInlineCallback(("Yes", "clear"), ("No", "skip")))
+
+        elif mes.text == dict['orders']:
+            if "orders" in userDB and len(userDB['orders']) > 0:
+                setStage("orders", mes)
+            else:
+                bot.send_message(mes.chat.id, "Your order list is empty. Order something first!")
+                setStage("MainMenu", mes)
+        else:
+            bot.send_message(mes.chat.id, "Unknown command. Use /help to see available commands")
+
+
+
+    elif findId(mes) == False:
         setStage("firststart", mes)
-
-    elif getStage(mes) == "settings" and mes.text == "Register again":
-        print("Restart")
-        setStage("firststart", mes)
-
-    elif getStage(mes) == "settings" and mes.text == dict["home"]:
-        print("Settings cancelled by " + str(userDB))
-        saveUser(mes)
-        setStage("MainMenu", mes)
-
-    elif mes.text == "Show more":
-        sort(db[str(mes.chat.id)]['category'], mes, db[str(mes.chat.id)]['step'])
-
-    elif mes.text == dict["settings"]:
-        setStage("settings", mes)
-
-    elif mes.text == dict["cart"]:
-        setStage("cart", mes)
-
-    elif mes.text == dict["home"] or mes.text == "Home" or mes.text == "home" or mes.text == "back":
-        setStage("MainMenu", mes)
-
-    elif mes.text == dict["browse"]:
-        setStage("browse", mes)
-
-    elif mes.text == dict['contact']:
-        setStage("contact", mes)
-
-    elif getStage(mes) == "browse" and mes.text in list(itemsdb.cats):
-        sort(itemsdb.bycategory[mes.text], mes, 0)
-        patchCategory(mes)
-
-    elif getStage(mes) == "payment" and mes.text == "Pay":
-        print("Trying to pay now!")
-
-    elif mes.text == "Order" and getStage(mes) == "cart":
-        print("This is what is in user's cart:")
-        cart = db[str(mes.chat.id)]['cart']
-        keys = list(cart.keys())
-        values = list(cart.values())
-        total = 0
-        bot.send_message(mes.chat.id, "This is your order: ")
-        for i in range(0, len(cart)):
-            print(values[i]['name']+", "+str(values[i]['amount'])+" pcs, "+str(int(values[i]['price'])*int(values[i]['amount']))+"$")
-            bot.send_message(mes.chat.id, values[i]['name']+", "+str(values[i]['amount'])+" pcs, "+str(int(values[i]['price'])*int(values[i]['amount']))+"$")
-            total += int(values[i]['price'])*int(values[i]['amount'])
-
-        bot.send_message(mes.chat.id, "Price: "+str(total)+"$. Would you like to pick up the order yourself, or get it by delivery?", reply_markup=newBut("I'll pick up myself", "Delivery"))
-
-    elif mes.text == "I'll pick up myself" and getStage(mes) == "cart":
-        bot.send_message(mes.chat.id, "Great! Address for pickup is "+ usersdb.owner_Info['Store_Name'] + ", " + usersdb.owner_Info['Storage_Address'])
-        setStage("payment", mes)
-
-
-    elif mes.text == "Clear cart" and getStage(mes) == "cart":
-        bot.send_message(mes.chat.id, "Would you really like to clear your cart?", reply_markup=newInlineCallback(("Yes", "clear"), ("No", "skip")))
-    else:
-        bot.send_message(mes.chat.id, "Unknown command. Use /help to see available commands")
-
-
 ################################################################################################## END
 
 

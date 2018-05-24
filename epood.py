@@ -418,9 +418,6 @@ def makeLabeledPrices():
     prices = things
     print(prices)
 
-shipping_options = [
-    ShippingOption(id='instant', title='WorldWide Teleporter').add_price(LabeledPrice('Teleporter', 1000)),
-    ShippingOption(id='pickup', title='Local pickup').add_price(LabeledPrice('Pickup', 300))]
 
 @bot.message_handler(commands=['terms'])
 def command_terms(message):

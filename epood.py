@@ -407,8 +407,7 @@ updateLocalDB() # Updating local DB to improve performance
 sortAllByCategory()
 sortCategories()
 ################################################################################################## Listeners
-prices = [LabeledPrice(label='Working Time Machine', amount=5750),
-          LabeledPrice('Gift wrapping', 500)]
+
 
 def makeLabeledPrices():
     things = []

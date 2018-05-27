@@ -388,9 +388,9 @@ def makeOrderInlines(mes):
     saveUser(mes)
     plusminus = []
     if step % 5 < 1:
-        plusminus.append(types.InlineKeyboardButton("<",callback_data="orders<"))
+        plusminus.append(types.InlineKeyboardButton("<",callback_data="<"))
     if step % 5 > 5:
-        plusminus.append(types.InlineKeyboardButton(">",callback_data="orders>"))
+        plusminus.append(types.InlineKeyboardButton(">",callback_data=">"))
 
     if len(plusminus) > 0:
         mrkup.add(*plusminus)
@@ -590,7 +590,7 @@ def handle_callback(call):
     elif data == "skip":
         setStage("cart", mes)
 
-    elif data[:6] == "orders" and data[6:] != "<" and data[6:] != ">" and isinstance(int(data[6:]), int):
+    elif data[:6] == "orders" and isinstance(int(data[6:]), int) and data[6:] != "<" and data[6:] != ">":
         print("GOT PAST ordersNUM filter")
         itemsfororder = ""
         keys = list(db[str(mes.chat.id)]['orders']['order'+data[6:]].keys())
@@ -611,7 +611,7 @@ def handle_callback(call):
         bot.send_message(mes.chat.id, "Order #"+str(data[6:])+"\n \nOrdered items: \n \n"+itemsfororder, reply_markup=newBut(dict['home']))
         print("Making more inlines")
 
-    elif data[:6] == "orders" and data[6:] == "<" or data[6:] == ">":
+    elif data[:6] == "orders" and data[6:] == "<" or data[6:] == ">" and 19 == 23:
         if data[6:] == "<":
             print("Switch step to -5 if possible")
             for i in range(0, 5):
@@ -629,6 +629,9 @@ def handle_callback(call):
                     print("Step: "+str(db[str(mes.chat.id)]['inlinestep']))
                 else:
                     print("Nope")
+        else:
+            print("Not working right now")
+            bot.send_message(mes.chat.id, "This function is being developed", reply_markup=newBut(dict['home']))
 
 
         saveUser(mes)
@@ -746,7 +749,11 @@ def handle_Text(mes):
                                      'country'] + "?", reply_markup=newBut("Yes", "No"))
 
         elif mes.text == "Yes" and getStage(mes) == "delivery":
-            makePayment(mes, [LabeledPrice(label=mes.from_user.first_name+"'s order", amount=int(userDB['cartinfo']['total'])*100)]) ## Ask to pay it all :p
+            try:
+                makePayment(mes, [LabeledPrice(label=mes.from_user.first_name+"'s order", amount=int(userDB['cartinfo']['total'])*100)]) ## Ask to pay it all :p
+            except Exception as x:
+                print(x)
+                bot.send_message(mes.chat.id, "Some thing is wrong: "+str(x))
 
 
         elif mes.text == "No" and getStage(mes) == "delivery":

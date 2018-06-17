@@ -28,9 +28,6 @@ provider_token = os.environ['PROVIDER_TOKEN']
 server = Flask(__name__)
 
 
-
-
-
 global stage
 bot = telebot.TeleBot(token)
 fb = firebase.FirebaseApplication(url, None)
@@ -84,7 +81,7 @@ def sortAllByCategory():
         else:
             cats.append(values[i]['category'])
     itemsdb.cats = cats
-    print(cats)
+    
 
 def sortCategories():
 
@@ -137,7 +134,7 @@ def sort(dict, mes, step1):
     step = step1
     keys = list(dict.keys())
     values = list(dict.values())
-    print("Starting to sort with step "+str(step))
+    
     for i in range(0, 2):
         if step < len(dict):
 
@@ -191,7 +188,6 @@ def patchStage(mes, stage):
 
 def cartInlines(name, mes, num):
     amount = int(db[str(mes.chat.id)]['cart'][name]['amount'])
-    print("Made an inline for "+ str(name)+ " with amount "+str(amount))
     mrkup = types.InlineKeyboardMarkup(row_width=10)
     x = types.InlineKeyboardButton("❌", callback_data=name+";delete"+"|CART")
     minusone = types.InlineKeyboardButton(text="➖", callback_data=str(name + ";" + str(amount - 1)+"|CART"))
@@ -204,7 +200,7 @@ def cartInlines(name, mes, num):
 
 def getKeys(dict):
     keys = list(dict.keys())
-    print(tuple(keys))
+    
     return keys
 
 def setStage(stage, mes):
@@ -280,14 +276,14 @@ def setStage(stage, mes):
         bot.send_message(mes.chat.id, "Choose category:", reply_markup=categoryButtons())
 
     elif stage == "orders":
-        print()
+      
         db[str(mes.chat.id)]['stage'] = stage
         db[str(mes.chat.id)]['inlinestep'] = 0
         db[str(mes.chat.id)]['ordersmes'] = ""
         ordersid = bot.send_message(mes.chat.id, "Here are your recent orders:")
         db[str(mes.chat.id)]['ordersmes'] = ordersid.message_id
         makeOrderInlines(mes)
-        print("Init order mes id is "+str(ordersid.message_id))
+        
         bot.send_message(mes.chat.id, "Click Home to return home", reply_markup=newBut(dict['home']))
 
     elif stage == "cart":
@@ -299,7 +295,7 @@ def setStage(stage, mes):
                                  "Your cart is empty! Add something that you would like to order and come back again!")
                 setStage("MainMenu", mes)
             else:
-                print("This is user's cart: " + str(db[str(mes.chat.id)]['cart']))
+                
                 bot.send_message(mes.chat.id, "This is what's in your cart right now:")
                 keys = list(db[str(mes.chat.id)]['cart'].keys())
                 values = list(db[str(mes.chat.id)]['cart'].values())
@@ -317,7 +313,7 @@ def setStage(stage, mes):
                     db[str(mes.chat.id)]['cartinfo'] = {}
                 db[str(mes.chat.id)]['cartinfo']["id"] = totalid.message_id
                 db[str(mes.chat.id)]['cartinfo']['total'] = calcTotal(mes)
-                print("MSG ID: "+str(totalid.message_id)+" | TOTAL: "+str(total))
+                
                 saveUser(mes)
                 bot.send_message(mes.chat.id, "Would you like to proceed to payment?", reply_markup=newBut("Order", "Clear cart",dict['home']))
         else:
@@ -342,7 +338,7 @@ def setStage(stage, mes):
     elif stage == "contact":
         db[str(mes.chat.id)]['stage'] = stage
         bot.send_message(mes.chat.id, dict['contact1'], reply_markup=newBut(dict['home']))
-        print()
+        
 
 def newUser(mes):
     id = mes.chat.id
@@ -367,7 +363,7 @@ def newUser(mes):
     db1['cartinfo'] = {}
 
 def saveUser(mes):
-    print("SAVEUSER DEBUG: "+str(db[str(mes.chat.id)]))
+    
     try:
         fb.patch("users/"+str(mes.chat.id), db[str(mes.chat.id)])
     except Exception as x:
@@ -383,7 +379,7 @@ def makeOrderInlines(mes):
     step = udb['inlinestep']
     ordermes = udb['ordersmes']
     initstep = step
-    print("Order mes id is in function "+str(ordermes))
+    
     mrkup = types.InlineKeyboardMarkup(row_width=2)
     buttons = []
     keys = list(udb['orders'].keys())
@@ -451,7 +447,7 @@ def makeLabeledPrices():
     for i in range(0, len(items)):
         things.append(LabeledPrice(values[i]['name'], values[i]['price']*100 ))
     prices = things
-    print(prices)
+    
 
 shipping_options = [
     ShippingOption(id='instant', title='WorldWide Teleporter').add_price(LabeledPrice('Teleporter', 1000)),
@@ -484,7 +480,7 @@ def makePayment(mes, price):
 
 @bot.shipping_query_handler(func=lambda query: True)
 def shipping(shipping_query):
-    print(shipping_query)
+    
     bot.answer_shipping_query(shipping_query.id, ok=True, shipping_options=shipping_options,
                               error_message='Oh, seems like our Dog couriers are having a lunch right now. Try again later!')
 
@@ -511,7 +507,7 @@ def got_payment(mes):
     db[str(mes.chat.id)]['orders']['order' + str(orderid)]['date'] = datetime.datetime.now()
     db[str(mes.chat.id)]['orders']['order' + str(orderid)]['id'] = orderid
     db[str(mes.chat.id)].pop('cart')
-    print("User's order dict: "+str(db[str(mes.chat.id)]['orders']))
+    
     this = db[str(mes.chat.id)]['orders'].copy()
     fb.patch("users/"+str(mes.chat.id)+"/cart", None)
     fb.patch("users/"+str(mes.chat.id)+"/orders/order"+str(orderid), this["order"+str(orderid)])
@@ -553,7 +549,7 @@ def handle_callback(call):
     id = mes.chat.id
     data = str(call.data)
     if data[-5:] == "|CART":
-        print("This is a cart inline: "+data)
+        
 
         if str(call.data) != "AMOUNT":
             findName = data[:data.find(";")]
@@ -683,7 +679,7 @@ def handle_callback(call):
 
 @bot.message_handler(content_types=['text'])
 def handle_Text(mes):
-    print(db)
+   
 
     findUser = mes.chat.id
 

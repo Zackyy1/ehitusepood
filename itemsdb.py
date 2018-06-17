@@ -21,12 +21,12 @@ items = {
         "description": "5cm Screws",
         "image": "https://www.formwork-sales.com/wp-content/uploads/2017/05/screws.jpg"
     },
-    "biblesatan":{
-        "name": "Standart books",
-        "price": "666",
-        "category": "Religion books",
-        "description": "For satanic purposes",
-        "image": "https://www.thesun.co.uk/wp-content/uploads/2016/05/2897054.main_image.jpg?strip=all"
+    "concreteb":{
+        "name": "Concrete block",
+        "price": "3",
+        "category": "Building materials",
+        "description": "10x10x20 cm",
+        "image": "https://www.dengu.co.za/images/cache/download__2_.500.jpg"
     },
     "screws2":{
         "name": "Small screws",

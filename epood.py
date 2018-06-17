@@ -401,8 +401,7 @@ def makeOrderInlines(mes):
     print("Current step: "+str(step))
     for i in range(0, len(buttons)):
         mrkup.add(buttons[i])
-    #if step <
-    saveUser(mes)
+   
     plusminus = []
 
     if step > 2:

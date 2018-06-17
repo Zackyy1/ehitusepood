@@ -243,6 +243,11 @@ def setStage(stage, mes):
         bot.send_message(mes.chat.id, "If you order for your company, please tap \"Skip\". We'll choose your company in the next step", reply_markup=newBut("Skip"))
         db[str(mes.chat.id)]['stage'] = stage
 
+    elif stage == "enterName":
+        bot.send_message(mes.chat.id, "Enter your name")
+        bot.send_message(mes.chat.id, "You can also enter Company's name if it is neccessary")
+        db[str(mes.chat.id)]['stage'] = stage
+
     elif stage == "registerAddress":
         bot.send_message(mes.chat.id, "Enter delivery address. i.e. Pikk 52-1")
         db[str(mes.chat.id)]['stage'] = stage
@@ -251,11 +256,13 @@ def setStage(stage, mes):
         bot.send_message(mes.chat.id, "Is this information correct?")
         db[str(mes.chat.id)]['stage'] = stage
         if db[str(mes.chat.id)]['company'] == "":
-            bot.send_message(mes.chat.id, db[str(mes.chat.id)]['address']+", "+
+            bot.send_message(mes.chat.id, db[str(mes.chat.id)]['fullname'] +"\n"+
+                                    db[str(mes.chat.id)]['address']+", "+
                                       db[str(mes.chat.id)]['city'] + ", " +
                                       db[str(mes.chat.id)]['country'], reply_markup=newBut("Yes", "No"))
         else:
-            bot.send_message(mes.chat.id, db[str(mes.chat.id)]['company'] + ", " +
+            bot.send_message(mes.chat.id, db[str(mes.chat.id)]['fullname'] +"\n"+
+                             db[str(mes.chat.id)]['company'] + ", " +
                              db[str(mes.chat.id)]['country'], reply_markup=newBut("Yes", "No"))
 
     elif stage == "payment":
@@ -276,7 +283,11 @@ def setStage(stage, mes):
         print()
         db[str(mes.chat.id)]['stage'] = stage
         db[str(mes.chat.id)]['inlinestep'] = 0
-        bot.send_message(mes.chat.id, "Here are your recent orders:", reply_markup=makeOrderInlines(mes))
+        db[str(mes.chat.id)]['ordersmes'] = ""
+        ordersid = bot.send_message(mes.chat.id, "Here are your recent orders:")
+        db[str(mes.chat.id)]['ordersmes'] = ordersid.message_id
+        makeOrderInlines(mes)
+        print("Init order mes id is "+str(ordersid.message_id))
         bot.send_message(mes.chat.id, "Click Home to return home", reply_markup=newBut(dict['home']))
 
     elif stage == "cart":
@@ -294,6 +305,8 @@ def setStage(stage, mes):
                 values = list(db[str(mes.chat.id)]['cart'].values())
                 total = 0
                 for i in range(0, len(db[str(mes.chat.id)]['cart'])):
+                    #total += int(values[i]['price']) * int(values[i]['amount'])
+
                     total += int(values[i]['price']) * int(values[i]['amount'])
                     photoid = bot.send_photo(mes.chat.id, values[i]['image']).message_id
                     db[str(mes.chat.id)]['cart'][str(keys[i])]['imageid'] = photoid
@@ -343,6 +356,7 @@ def newUser(mes):
     db1['city'] = ''
     db1['company'] = ''
     db1['address'] = ''
+    db1['fullname'] = ''
     db1['orders'] = {}
     db1['cart'] = {}
     db1['step'] = 0
@@ -367,18 +381,25 @@ def getStage(mes):
 def makeOrderInlines(mes):
     udb = db[str(mes.chat.id)]
     step = udb['inlinestep']
+    ordermes = udb['ordersmes']
+    initstep = step
+    print("Order mes id is in function "+str(ordermes))
     mrkup = types.InlineKeyboardMarkup(row_width=2)
     buttons = []
     keys = list(udb['orders'].keys())
     values = list(udb['orders'].values())
     print("Orders length: "+str(len(udb['orders'])))
     if step < len(udb['orders']):
-        print("Came past")
-        for i in range(0, 5):
+
+        for i in range(0, 2):
             if step < len(udb['orders']):
                 but = types.InlineKeyboardButton(text=str(keys[step]), callback_data="orders"+str(values[step]['id']))
+                print("Added a button | step: "+str(step))
                 buttons.append(but)
                 step+=1
+                if step > len(udb['orders']):
+                    print("END")
+                    step = len(udb['orders'])
             else:
                 print("List ended")
     print("Current step: "+str(step))
@@ -387,15 +408,25 @@ def makeOrderInlines(mes):
     #if step <
     saveUser(mes)
     plusminus = []
-    if step % 5 < 1:
-        plusminus.append(types.InlineKeyboardButton("<",callback_data="<"))
-    if step % 5 > 5:
+
+    if step > 2:
+        plusminus.append(types.InlineKeyboardButton("<", callback_data="<"))
+
+    if step == 2 or step + 2 <= len(udb['orders']) or len(udb['orders']) - step > 0:
         plusminus.append(types.InlineKeyboardButton(">",callback_data=">"))
+
+
 
     if len(plusminus) > 0:
         mrkup.add(*plusminus)
 
-    return mrkup
+
+    bot.edit_message_reply_markup(mes.chat.id, udb['ordersmes'], reply_markup=mrkup)
+
+
+
+    #return mrkup
+
 
 
 def checkKey(dict, key):
@@ -429,19 +460,17 @@ shipping_options = [
 @bot.message_handler(commands=['terms'])
 def command_terms(message):
     bot.send_message(message.chat.id,
-                     'Thank you for shopping with our demo bot. We hope you like your new time machine!\n'
-                     '1. If your time machine was not delivered on time, please rethink your concept of time and try again.\n'
-                     '2. If you find that your time machine is not working, kindly contact our future service workshops on Trappist-1e.'
-                     ' They will be accessible anywhere between May 2075 and November 4000 C.E.\n'
-                     '3. If you would like a refund, kindly apply for one yesterday and we will have sent it to you immediately.')
+                     'Thank you for shopping with our bot!\n'
+                     '1. If your order is not being delievered, go to /contacts and contact store owners. Include your order ID from \"My orders\" tab.\n'
+                     '2. For any kind of questions, /contacts is the best way to solve a problem.\n')
 
 def makePayment(mes, price):
     bot.send_message(mes.chat.id,
                      "Real cards won't work with me, no money will be debited from your account."
-                     " Use this test card number to pay for your Time Machine: `4242 4242 4242 4242`"
+                     " Use this test card number to pay for your demo invoice: `4242 4242 4242 4242`"
                      "\n\nThis is your demo invoice:", parse_mode='Markdown', reply_markup=newBut(dict['home']))
     bot.send_invoice(mes.chat.id, title=mes.from_user.first_name+"'s Order",
-                     description="Your order is listed above. Double-check!",
+                     description="Your order was listed above. You can return to check it or proceed.",
                      provider_token=provider_token,
                      currency='eur',
                      photo_url=None,
@@ -450,7 +479,7 @@ def makePayment(mes, price):
                      photo_size=None,
                      is_flexible=False,  # True If you need to set up Shipping Fee
                      prices=price,
-                     start_parameter='time-machine-example',
+                     start_parameter='order-invoice',
                      invoice_payload=str(mes.chat.id))
 
 @bot.shipping_query_handler(func=lambda query: True)
@@ -539,8 +568,12 @@ def handle_callback(call):
                 newInt = int(db[str(mes.chat.id)]['cart'][findName]['amount'])
                 bot.edit_message_reply_markup(chat_id=id, message_id=mes.message_id, reply_markup=cartInlines(findName, mes, newInt))
                 db[str(mes.chat.id)]['cartinfo']['total'] = calcTotal(mes)
-                bot.edit_message_text(chat_id=mes.chat.id, message_id=db[str(mes.chat.id)]['cartinfo']['id'], text="Total price: "+ str(db[str(mes.chat.id)]['cartinfo']['total'])+"$" )
-
+                try:
+                    bot.edit_message_text(chat_id=mes.chat.id, message_id=db[str(mes.chat.id)]['cartinfo']['id'], text="Total price: "+ str(db[str(mes.chat.id)]['cartinfo']['total'])+"$" )
+                except Exception as x:
+                    print(x)
+                    bot.send_message(mes.chat.id, "Something went wrong: "+str(x))
+                    bot.send_message(mes.chat.id, "If total price is wrong, try pushing + and then - until you believe it's correct.")
             elif findAction == "delete":
                 print("Deleting "+findName)
                 imageid = db[str(mes.chat.id)]['cart'][findName]['imageid']
@@ -558,10 +591,11 @@ def handle_callback(call):
             else:
                 print("Something went wrong, returning")
                 setStage("MainMenu", mes)
-    elif data[data.find(";")+1:] != 'add' and str(call.data) != "AMOUNT" and data != "clear" and data != "skip" and data[:6] != "orders":
+    elif data[data.find(";")+1:] != 'add' and str(call.data) != "AMOUNT" and data != "clear" and data != "skip" and data[:6] != "orders" and data != ">" and data != "<":
         print("Adding "+call.data)
         if int(data[data.find(";")+1:]) >= 0:
-            bot.edit_message_reply_markup(chat_id=id, message_id=mes.message_id, reply_markup=itemInline(data[:data.find(";")], int(data[data.find(";")+1:]))) ## todo: fix this shit please
+            bot.edit_message_reply_markup(chat_id=id, message_id=mes.message_id, reply_markup=itemInline(data[:data.find(";")], int(data[data.find(";")+1:])))
+
     elif str(data[data.find(";")+1:]) == "add" and int(data[data.find(",") + 1:data.find(";")]) > 0:
         itemName = str(data[:data.find(","):])
         amount = str(data[data.find(",") + 1:data.find(";")])
@@ -579,8 +613,6 @@ def handle_callback(call):
         print("This is from cart")
 
             ################################################################ DIFFERENT INLINES #########################
-
-
 
     elif data == "clear":
         db[str(mes.chat.id)]['cart'] = {}
@@ -636,6 +668,19 @@ def handle_callback(call):
 
         saveUser(mes)
 
+    elif data == ">":
+        udb = db[str(id)]
+        udb['inlinestep'] += 2
+        print("Inlinestep: "+str(udb['inlinestep']))
+        makeOrderInlines(mes)
+
+    elif data == "<":
+        udb = db[str(id)]
+        udb['inlinestep'] = udb['inlinestep'] - 2
+        print("Inlinestep: " + str(udb['inlinestep']))
+        makeOrderInlines(mes)
+
+
 @bot.message_handler(content_types=['text'])
 def handle_Text(mes):
     print(db)
@@ -651,6 +696,11 @@ def handle_Text(mes):
         if getStage(mes) == 'registerCountry' or userDB['country'] == "":
             userDB['country'] = mes.text
             print("User "+mes.from_user.first_name+"'s country is set to "+mes.text)
+            setStage("enterName", mes)
+
+        elif getStage(mes) == "enterName" or userDB['fullname'] == "":
+            userDB['fullname'] = mes.text
+            print("User's new name: "+str(mes.text))
             setStage("isCompany", mes)
 
         elif getStage(mes) == "isCompany" and mes.text == "Skip": ## CHOOSING A COMPANY
@@ -728,12 +778,13 @@ def handle_Text(mes):
             values = list(cart.values())
             total = 0
             bot.send_message(mes.chat.id, "This is your order: ")
+            text = ""
             for i in range(0, len(cart)):
                 print(values[i]['name']+", "+str(values[i]['amount'])+" pcs, "+str(int(values[i]['price'])*int(values[i]['amount']))+"$")
-                bot.send_message(mes.chat.id, values[i]['name']+", "+str(values[i]['amount'])+" pcs, "+str(int(values[i]['price'])*int(values[i]['amount']))+"$")
+                text = text + str(values[i]['name']+", "+str(values[i]['amount'])+" pcs, "+str(int(values[i]['price'])*int(values[i]['amount']))+"$"+"\n")
                 total += int(values[i]['price'])*int(values[i]['amount'])
-
-            bot.send_message(mes.chat.id, "Price: "+str(total)+"$. Would you like to pick up the order yourself, or get it by delivery?", reply_markup=newBut("I'll pick up myself", "Delivery"))
+            bot.send_message(mes.chat.id, text)
+            bot.send_message(mes.chat.id, "Price: "+str(total)+"$. Would you like to pick up the order yourself, or get it by delivery?", reply_markup=newBut("I'll pick up myself", "Delivery", dict['home']))
 
         elif mes.text == "I'll pick up myself" and getStage(mes) == "cart":
             bot.send_message(mes.chat.id, "Great! Address for pickup is "+ usersdb.owner_Info['Store_Name'] + ", " + usersdb.owner_Info['Storage_Address'])
@@ -753,7 +804,9 @@ def handle_Text(mes):
                 makePayment(mes, [LabeledPrice(label=mes.from_user.first_name+"'s order", amount=int(userDB['cartinfo']['total'])*100)]) ## Ask to pay it all :p
             except Exception as x:
                 print(x)
-                bot.send_message(mes.chat.id, "Some thing is wrong: "+str(x))
+                bot.send_message(mes.chat.id, "Some thing is wrong")
+                if str(x).find("CURRENCY_TOTAL_AMOUNT_INVALID"):
+                    bot.send_message(mes.chat.id, "Our payment provider or Telegram rules restrict you from paying this much amount of money. Please go to contact to visit our website")
 
 
         elif mes.text == "No" and getStage(mes) == "delivery":
@@ -777,6 +830,7 @@ def handle_Text(mes):
     elif findId(mes) == False:
         setStage("firststart", mes)
 ################################################################################################## END
+
 
 
 @server.route('/' + token, methods=['POST'])
